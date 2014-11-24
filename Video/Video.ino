@@ -7,7 +7,7 @@ const int videoGreenPin = 19;
 const int videoBluePin = 17;
 const int videoIntensityPin = 16;
 
-uint16_t videoCurrentScanlineNumber = 0;
+uint16_t videoCurrentScanlineNumber = 1;
 
 uint32_t videoBuffer[(320 * 4 / 32) * 200];
 
@@ -20,7 +20,6 @@ inline void videoDelay(uint32_t n) {
   );
 }
 
-//TODO: prepsat syncy na digitalWriteFast a opravit videoDelaye
 inline void videoDrawScanlineLongPulses() {
   digitalWriteFast(videoSyncPin, LOW);
   videoDelay(875); // 27.3us
@@ -70,88 +69,90 @@ inline void videoDrawScanlineImage(uint8_t imageLine) {
   videoDelay(165); // 5.175us
   
   // picture
-  uint32_t *pixelPtr;
-  uint32_t *endPtr;
-  pixelPtr = videoBuffer + (imageLine * 40);
-  endPtr = pixelPtr + 40;
-  pixelPtr--;
-  while (++pixelPtr < endPtr) {
-    GPIOB_PDOR = (*pixelPtr) >> 28;
-    asm("NOP"); // 0.208us*/
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    GPIOB_PDOR = (*pixelPtr) >> 24;
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    GPIOB_PDOR = (*pixelPtr) >> 20;
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    GPIOB_PDOR = (*pixelPtr) >> 16;
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    GPIOB_PDOR = (*pixelPtr) >> 12;
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    GPIOB_PDOR = (*pixelPtr) >> 8;
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    GPIOB_PDOR = (*pixelPtr) >> 4;
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    GPIOB_PDOR = (*pixelPtr) >> 0;
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
-    asm("NOP");
+  if (imageLine < 200) {
+    uint32_t *pixelPtr;
+    uint32_t *endPtr;
+    pixelPtr = videoBuffer + (imageLine * 40);
+    endPtr = pixelPtr + 40;
+    pixelPtr--;
+    while (++pixelPtr < endPtr) {
+      GPIOB_PDOR = (*pixelPtr) >> 28;
+      asm("NOP"); // 0.208us*/
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      GPIOB_PDOR = (*pixelPtr) >> 24;
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      GPIOB_PDOR = (*pixelPtr) >> 20;
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      GPIOB_PDOR = (*pixelPtr) >> 16;
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      GPIOB_PDOR = (*pixelPtr) >> 12;
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      GPIOB_PDOR = (*pixelPtr) >> 8;
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      GPIOB_PDOR = (*pixelPtr) >> 4;
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      GPIOB_PDOR = (*pixelPtr) >> 0;
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+      asm("NOP");
+    }
   }
   
   // text-unsafe, front porch (end of line)
@@ -164,11 +165,6 @@ inline void videoDrawScanlineImage(uint8_t imageLine) {
 void videoDrawScanline() {
   noInterrupts();
   
-  videoCurrentScanlineNumber++;
-  if (videoCurrentScanlineNumber == 313) {
-    videoCurrentScanlineNumber = 1;
-  }
-  
   if (videoCurrentScanlineNumber <= 5) {
     if (videoCurrentScanlineNumber < 3) {
       videoDrawScanlineLongPulses();
@@ -180,12 +176,13 @@ void videoDrawScanline() {
   } else if (videoCurrentScanlineNumber >= 310) {
       videoDrawScanlineShortPulses();
   } else {
-      if ((videoCurrentScanlineNumber >= 70) && (videoCurrentScanlineNumber < 270)) {
-        videoDrawScanlineImage(videoCurrentScanlineNumber - 70);
-      } else {
-        videoDrawScanlineImageEmpty();
-      }
-  }  
+      videoDrawScanlineImage(videoCurrentScanlineNumber - 70);
+  }
+  
+  videoCurrentScanlineNumber++;
+  if (videoCurrentScanlineNumber == 313) {
+    videoCurrentScanlineNumber = 1;
+  }
   
   interrupts();
 }
@@ -202,12 +199,12 @@ void videoTestPattern() {
     if (((i / 40) % 8) == 0) {
       videoBuffer[i] = 0xEEEEEEEE;
     }
-    if (i > 4000) {
+ /*   if (i > 4000) {
       videoBuffer[i] = 0xE0E0E0E0;
       if (((i / 40) % 2) == 0) {
         videoBuffer[i] = 0x0E0E0E0E;
       }
-    }
+    }*/
     //videoBuffer[i] = 0xE0E0E0E0;
   }
 }
@@ -380,11 +377,22 @@ void setup() {
   pinMode(videoBluePin, OUTPUT);
   pinMode(videoIntensityPin, OUTPUT);
   
+  
+//  asm("MRC p15, 0, r1, c1, c0, 1");
+//asm("ORR r1, r1, #0b00000000001100101000000000000000");
+//  asm("ORR r1, r1, #0b00000000000000000000000000000000");
+//  asm("MCR p15, 0, r1, c1, c0, 1");
+//  C1 |= ((1 << 21) | (1 << 20) | (1 << 17) | (1 << 15));
+  
   videoClearScreen();
   videoTimer.begin(videoDrawScanline, 64);
   
   videoTestPattern();
-  videoTextWriteString("Hello everybody!\nThis is amazing!");
+  videoTextWriteString("Hello everybody!\nThis is amazing!\n");
+  for (uint8_t i = 0; i < 16; i++) {
+    videoColorForeground = i;
+    videoTextWriteString("#");
+  }
 //  videoTimer.priority(0);
   
 //  Serial.begin(9600);
