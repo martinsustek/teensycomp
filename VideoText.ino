@@ -1,3 +1,12 @@
+/**
+ * TODO:
+ * complete font
+ * transparent background
+ * effects (shadows, rotations,...)
+ * printf-style methods
+ * PROGMEM string printing
+ */
+
 #include "VideoTextFont.h"
 
 const uint8_t VideoText_fontWidth = 6;
@@ -39,9 +48,8 @@ void VideoText_NextChar() {
 }
 
 void VideoText_DrawChar(const char ch) {
-  uint8_t id = (int)ch - 32;
   for (uint8_t column = 0; column < 6; column++) {
-    uint8_t data = pgm_read_byte(&(VideoText_font[id][column]));
+    uint8_t data = pgm_read_byte(&(VideoText_font[(int)ch][column]));
     for (uint8_t row = 0; row < 8; row++) {
       uint16_t color = VideoText_colorBackground;
       if ((data >> row) & 1) {
