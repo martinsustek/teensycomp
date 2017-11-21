@@ -7,7 +7,7 @@
  * Vertical refresh  31.46875 kHz
  * Pixel freq. 25.175 MHz
  *
- * Scanline part  Pixels  Time [�s]
+ * Scanline part  Pixels  Time [μs]
  * Visible area      640 25.422045680238
  * Front porch        16  0.63555114200596
  * Sync pulse         96  3.8133068520357
@@ -23,67 +23,53 @@
  * 
  */
 
-/**
- * TODO:
- * tick-precise Video_timer - to keep it in sync with cpucounter
- * asm routine for wait to cpucounter
- */
-IntervalTimer Video_timer;
+#include "Video.h"
+ 
+IntervalTimer Video::timer;
 
-const uint16_t Video_width = 320;
-const uint8_t Video_height = 200;
-uint16_t Video_buffer[Video_width * Video_height];
+uint16_t Video::buffer[width * height];
+uint32_t Video::dmaBuffer[dmaBufferLineSizeStart + dmaBufferLineSize + dmaBufferLineSizeStop];
 
-const uint16_t Video_dmaBufferLineSize = Video_width;
-const uint8_t Video_dmaBufferLineSizeStart = 55; // for time stabilization??
-const uint8_t Video_dmaBufferLineSizeStop = 1; // for reseting output back to zero
+uint16_t Video::currentScanlineNumber = 1;
+uint32_t Video::startScanlineCyccnt = ARM_DWT_CYCCNT;
+uint32_t Video::startSyncCyccnt = 0;
+uint32_t Video::startBPorchCyccnt = 0;
+uint32_t Video::startImageCyccnt = 0;
 
-uint32_t Video_dmaBuffer[Video_dmaBufferLineSizeStart + Video_dmaBufferLineSize + Video_dmaBufferLineSizeStop];
-
-const uint16_t Video_scanlines = 449;
-uint16_t Video_currentScanlineNumber = 1;
-uint32_t Video_startScanlineCyccnt = ARM_DWT_CYCCNT;
-uint32_t Video_startSyncCyccnt = 0;
-uint32_t Video_startBPorchCyccnt = 0;
-uint32_t Video_startImageCyccnt = 0;
-
-const int Video_vSyncPin = 3;
-const int Video_hSyncPin = 4;
-
-void Video_DrawScanline() {
-  Video_timer.begin(Video_DrawScanline, 30.2); // less than 31.777557100298 us
+void Video::DrawScanline() {
+  timer.begin(Video::DrawScanline, 30.2); // less than 31.777557100298 us
   noInterrupts();
 
-  int16_t imageLine = (Video_currentScanlineNumber - 47) / 2;
+  int16_t imageLine = (currentScanlineNumber - 47) / 2;
   if (imageLine < 0) {
-    imageLine = Video_height;
+    imageLine = height;
   }
   // front porch
-  while (Video_startScanlineCyccnt > ARM_DWT_CYCCNT) {};
+  while (startScanlineCyccnt > ARM_DWT_CYCCNT) {};
 
-  Video_startSyncCyccnt = Video_startScanlineCyccnt + 152; // front porch
-  Video_startBPorchCyccnt = Video_startSyncCyccnt + 915; // sync
-  Video_startImageCyccnt = Video_startBPorchCyccnt + 458; // back porch
-  Video_startScanlineCyccnt = Video_startScanlineCyccnt + 7627; // 31.777557100298 us - whole line
+  startSyncCyccnt = startScanlineCyccnt + 152; // front porch
+  startBPorchCyccnt = startSyncCyccnt + 915; // sync
+  startImageCyccnt = startBPorchCyccnt + 458; // back porch
+  startScanlineCyccnt = startScanlineCyccnt + 7627; // 31.777557100298 us - whole line
 
   // VSync + HSync
-  while (Video_startSyncCyccnt > ARM_DWT_CYCCNT) {};
-  digitalWriteFast(Video_vSyncPin, (Video_currentScanlineNumber < 2) ? HIGH : LOW);
-  digitalWriteFast(Video_hSyncPin, LOW);
+  while (startSyncCyccnt > ARM_DWT_CYCCNT) {};
+  digitalWriteFast(vSyncPin, (currentScanlineNumber < 2) ? HIGH : LOW);
+  digitalWriteFast(hSyncPin, LOW);
 
   // back porch
-  while (Video_startBPorchCyccnt > ARM_DWT_CYCCNT) {};
-  digitalWriteFast(Video_hSyncPin, HIGH);
+  while (startBPorchCyccnt > ARM_DWT_CYCCNT) {};
+  digitalWriteFast(hSyncPin, HIGH);
 
-  if (imageLine < Video_height) {
+  if (imageLine < height) {
     // image data
-    while (Video_startImageCyccnt > ARM_DWT_CYCCNT) {};
+    while (startImageCyccnt > ARM_DWT_CYCCNT) {};
   
     // send from DMA buffer
-    DMA_TCD1_SADDR = Video_dmaBuffer;
+    DMA_TCD1_SADDR = dmaBuffer;
     DMA_TCD1_SOFF = 4;
     DMA_TCD1_ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
-    DMA_TCD1_NBYTES_MLNO = (Video_dmaBufferLineSizeStart + Video_dmaBufferLineSize + Video_dmaBufferLineSizeStop) * 4;
+    DMA_TCD1_NBYTES_MLNO = (dmaBufferLineSizeStart + dmaBufferLineSize + dmaBufferLineSizeStop) * 4;
     DMA_TCD1_SLAST = 0;
     DMA_TCD1_DADDR = &GPIOB_PDOR;
     DMA_TCD1_DOFF = 0;
@@ -96,9 +82,9 @@ void Video_DrawScanline() {
     uint16_t *pixelPtr;
     uint16_t *endPtr;
     uint32_t *targetPtr;
-    pixelPtr = Video_buffer + (imageLine * Video_width);
-    endPtr = pixelPtr + Video_width;
-    targetPtr = Video_dmaBuffer + Video_dmaBufferLineSizeStart;
+    pixelPtr = buffer + (imageLine * width);
+    endPtr = pixelPtr + width;
+    targetPtr = dmaBuffer + dmaBufferLineSizeStart;
     pixelPtr--;
     while (++pixelPtr < endPtr) {
       uint16_t val = (*pixelPtr);
@@ -106,18 +92,18 @@ void Video_DrawScanline() {
     }
   }
   
-  Video_currentScanlineNumber++;
-  if (Video_currentScanlineNumber > Video_scanlines) {
-    Video_currentScanlineNumber = 1;
+  currentScanlineNumber++;
+  if (currentScanlineNumber > scanlines) {
+    currentScanlineNumber = 1;
   }
   
   interrupts();
 }
 
-void Video_Init() {
+void Video::Init() {
   // initialize the digital pin as an output.
-  pinMode(Video_hSyncPin, OUTPUT);
-  pinMode(Video_vSyncPin, OUTPUT);
+  pinMode(hSyncPin, OUTPUT);
+  pinMode(vSyncPin, OUTPUT);
 
   pinMode(16, OUTPUT); // PTB0
   pinMode(17, OUTPUT); // PTB1
@@ -137,14 +123,14 @@ void Video_Init() {
   pinMode(45, OUTPUT); // PTB23
 
   // clear screen
-  Video_ClearScreen();
+  Video::ClearScreen();
 
   // clear port;
   GPIOB_PDOR = 0x00000000;
 
   // initialize DMA buffer
-  for (uint16_t i = 0; i < Video_dmaBufferLineSizeStart + Video_dmaBufferLineSize + Video_dmaBufferLineSizeStop; i++) {
-    Video_dmaBuffer[i] = 0;
+  for (uint16_t i = 0; i < dmaBufferLineSizeStart + dmaBufferLineSize + dmaBufferLineSizeStop; i++) {
+    dmaBuffer[i] = 0;
   }
 
   // initialize CPU cycle counter
@@ -161,22 +147,22 @@ void Video_Init() {
   NVIC_ICER3 = 0xffffffff;
 
   // initialize video timer and start loop
-  Video_timer.priority(0);
-  Video_DrawScanline();
+  timer.priority(0);
+  Video::DrawScanline();
 }
 
-void Video_ClearScreen() {
-  for (uint32_t i = 0; i < Video_width * Video_height; i++) {
-    Video_buffer[i] = 0;
+void Video::ClearScreen() {
+  for (uint32_t i = 0; i < width * height; i++) {
+    buffer[i] = 0;
   }
 }
 
-void Video_TestPattern() {
-  for (uint32_t i = 0; i < Video_width * Video_height; i++) {
-    Video_buffer[i] = i % 65536;
+void Video::TestPattern() {
+  for (uint32_t i = 0; i < width * height; i++) {
+    buffer[i] = i % 65536;
   }
 }
 
-void Video_SetPixel(uint16_t x, uint8_t y, uint16_t color) {
-  Video_buffer[x + y * Video_width] = color;
+void inline Video::SetPixel(uint16_t x, uint8_t y, uint16_t color) {
+  buffer[x + y * width] = color;
 }

@@ -1,77 +1,81 @@
 /**
  * TODO:
  * complete font
- * transparent background
  * effects (shadows, rotations,...)
  * printf-style methods
- * PROGMEM string printing
  */
 
+#include "VideoText.h"
 #include "VideoTextFont.h"
 
-const uint8_t VideoText_fontWidth = 6;
-const uint8_t VideoText_fontHeight = 8;
+uint16_t VideoText::posX;
+uint8_t VideoText::posY;
+uint16_t VideoText::colorForeground;
+uint16_t VideoText::colorBackground;
+uint8_t VideoText::attributes;
 
-uint16_t VideoText_posX;
-uint8_t VideoText_posY;
-uint16_t VideoText_colorForeground;
-uint16_t VideoText_colorBackground;
-
-void VideoText_Init() {
-  VideoText_SetPos(0,0);
-  VideoText_SetColor(0xFFFF, 0x0000);
+void VideoText::Init() {
+  SetPos(0,0);
+  SetColor(0xFFFF, 0x0000);
+  SetAttributes(VideoTextAttribute_none);
 }
 
-void VideoText_SetColor(uint16_t foreground, uint16_t background) {
-  VideoText_colorForeground = foreground;
-  VideoText_colorBackground = background;
+void VideoText::SetColor(uint16_t foreground, uint16_t background) {
+  colorForeground = foreground;
+  colorBackground = background;
 }
 
-void VideoText_SetPos(uint16_t x, uint8_t y) {
-  VideoText_posX = x;
-  VideoText_posY = y;
+void VideoText::SetAttributes(uint8_t attributes) {
+  VideoText::attributes = attributes;
 }
 
-void VideoText_NextLine() {
-  VideoText_posX = 0;
-  VideoText_posY += VideoText_fontHeight;
-  if (VideoText_posY >= 200) {
-    VideoText_posY = 0; // TODO: scroll instead?
+void VideoText::SetPos(uint16_t x, uint8_t y) {
+  posX = x;
+  posY = y;
+}
+
+void VideoText::NextLine() {
+  posX = 0;
+  posY += fontHeight;
+  if (posY >= 200) {
+    posY = 0; // TODO: scroll instead?
   }
 }
 
-void VideoText_NextChar() {
-  VideoText_posX += VideoText_fontWidth;
-  if (VideoText_posX >= 318) {
-    VideoText_NextLine();
+void VideoText::NextChar() {
+  posX += fontWidth;
+  if (posX >= 318) {
+    NextLine();
   }
 }
 
-void VideoText_DrawChar(const char ch) {
+void VideoText::DrawChar(const char ch) {
   for (uint8_t column = 0; column < 6; column++) {
-    uint8_t data = pgm_read_byte(&(VideoText_font[(int)ch][column]));
+    uint8_t data = pgm_read_byte(&(font[(int)ch][column]));
     for (uint8_t row = 0; row < 8; row++) {
-      uint16_t color = VideoText_colorBackground;
       if ((data >> row) & 1) {
-        color = VideoText_colorForeground;
+        Video::SetPixel(posX + column, posY + row, colorForeground);
+      } else {
+        if (!(attributes & VideoTextAttribute_transparentBackground)) {
+          Video::SetPixel(posX + column, posY + row, colorBackground);
+        }
       }
-      Video_SetPixel(VideoText_posX + column, VideoText_posY + row, color);
     }
   }
 }
 
-void VideoText_WriteChar(const char ch) {
+void VideoText::WriteChar(const char ch) {
   if (ch == '\n') {
-    VideoText_NextLine();
+    NextLine();
   } else {
-    VideoText_DrawChar(ch);
-    VideoText_NextChar();
+    DrawChar(ch);
+    NextChar();
   }
 }
 
-void VideoText_WriteString(const char* ch) {
+void VideoText::WriteString(const char* ch) {
   while (*ch != 0) {
-    VideoText_WriteChar(*ch);
+    WriteChar(*ch);
     ch++;
   }  
 }
